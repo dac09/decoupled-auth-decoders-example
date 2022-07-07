@@ -1,4 +1,5 @@
 import type { APIGatewayProxyEvent, Context as LambdaContext } from 'aws-lambda'
+import { A } from 'ts-toolbelt'
 
 import { createGraphQLHandler } from '@redwoodjs/graphql-server'
 import type { AuthDecoderResult } from '@redwoodjs/graphql-server'
@@ -29,13 +30,43 @@ const myAuthDecoder = async (
   }
 }
 
+/** TODO define secnarios for what a decoder should do
+
+1. Decoding should happen i.e. expected mechanism is there
+    A. Success
+    B. Failure (could not decode)
+2. Decoding should NOT happen i.e. it is a public request (so @skipAuth)
+*/
+const mySecretDecoder = (
+  event: APIGatewayProxyEvent,
+  _context: LambdaContext
+): AuthDecoderResult => {
+  console.log(
+    `🗯 \n ~ file: graphql.ts ~ line 45 ~ event.headers`,
+    event.headers
+  )
+  if (event.headers['x-api-key'] === 'bazinga') {
+    return {
+      result: {
+        id: 1,
+      },
+      metadata: {
+        type: 'bazinga-token-auth' as any, // @TODO we should not be restricted at all
+        schema: 'x-api-key',
+        token: event.headers['x-api-key'],
+      },
+    }
+  }
+  throw new Error('Regular error 💣')
+}
+
 export const handler = createGraphQLHandler({
   getCurrentUser,
   loggerConfig: { logger, options: {} },
   directives,
   sdls,
   services,
-  authDecoder: myAuthDecoder,
+  authDecoder: mySecretDecoder,
   onException: () => {
     // Disconnect from your database with an unhandled exception.
     db.$disconnect()
