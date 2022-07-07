@@ -1,8 +1,9 @@
 import type { APIGatewayProxyEvent, Context as LambdaContext } from 'aws-lambda'
 import { A } from 'ts-toolbelt'
 
+import type { AuthDecoderResult } from '@redwoodjs/api'
+import { parseAuthorizationHeader } from '@redwoodjs/api'
 import { createGraphQLHandler } from '@redwoodjs/graphql-server'
-import type { AuthDecoderResult } from '@redwoodjs/graphql-server'
 
 import directives from 'src/directives/**/*.{js,ts}'
 import sdls from 'src/graphql/**/*.sdl.{js,ts}'
@@ -24,8 +25,8 @@ const myAuthDecoder = async (
     },
     metadata: {
       type: 'dbAuth',
-      schema: 'Bearer',
-      token: event.headers['Authorization'],
+      // @MARK note the use of this utility here, maybe we should export from '@redwoodjs/api/utils'
+      token: parseAuthorizationHeader(event).token, // I don't think we need schema
     },
   }
 }
@@ -52,7 +53,6 @@ const mySecretDecoder = (
       },
       metadata: {
         type: 'bazinga-token-auth' as any, // @TODO we should not be restricted at all
-        schema: 'x-api-key',
         token: event.headers['x-api-key'],
       },
     }
@@ -66,7 +66,7 @@ export const handler = createGraphQLHandler({
   directives,
   sdls,
   services,
-  authDecoder: mySecretDecoder,
+  authDecoder: myAuthDecoder,
   onException: () => {
     // Disconnect from your database with an unhandled exception.
     db.$disconnect()
